@@ -229,8 +229,10 @@ def _R(x, y, w, h):
     return pygame.Rect(int(x), int(y), int(w), int(h))
 
 
-def sprite_pierrot(size, look, mouth):
-    key = ("pierrot", size, look, mouth)
+def sprite_pierrot(size, look, mouth, part="all"):
+    """Pierrot. mouth : 0 (fermée) à 3 (grande ouverte).
+    part : "all", "body" (sans béret) ou "hat" (béret seul)."""
+    key = ("pierrot", size, look, mouth, part)
     if key in _cache:
         return _cache[key]
     s, W = _canvas(size)
@@ -238,42 +240,56 @@ def sprite_pierrot(size, look, mouth):
     r = int(W * 0.40)
     fy = c + int(r * 0.12)
     ink = (70, 40, 35)
-    # foulard rouge
-    pygame.draw.ellipse(s, ROUGE, _R(c - r * 0.75, fy + r * 0.62, r * 1.5, r * 0.45))
-    # visage
-    pygame.draw.circle(s, (255, 244, 225), (c, fy), r)
-    pygame.draw.circle(s, ink, (c, fy), r, 4)
-    # béret bleu
-    br = _R(0, 0, r * 2.05, r * 0.95)
-    br.center = (c - int(r * 0.12), fy - int(r * 0.72))
-    pygame.draw.ellipse(s, (28, 48, 150), br)
-    pygame.draw.ellipse(s, (12, 20, 70), br, 4)
-    pygame.draw.circle(s, (12, 20, 70), (br.centerx + int(r * 0.2), br.top + 4), int(r * 0.13))
-    # yeux
-    lx, ly = look
-    ey = fy + int(r * 0.02)
-    for ex in (c - int(r * 0.36), c + int(r * 0.36)):
-        pygame.draw.ellipse(s, WHITE, _R(ex - r * 0.21, ey - r * 0.27, r * 0.42, r * 0.54))
-        pygame.draw.ellipse(s, ink, _R(ex - r * 0.21, ey - r * 0.27, r * 0.42, r * 0.54), 2)
-        pygame.draw.circle(s, BLACK, (ex + int(lx * r * 0.09), ey + int(ly * r * 0.12)), int(r * 0.12))
-    # joues
-    for cx in (c - int(r * 0.66), c + int(r * 0.66)):
-        pygame.draw.circle(s, (255, 150, 150), (cx, fy + int(r * 0.36)), int(r * 0.13))
-    # bouche
-    my = fy + int(r * 0.52)
-    if mouth:
-        h = r * (0.18 + 0.14 * mouth)
-        pygame.draw.ellipse(s, (130, 20, 35), _R(c - r * 0.2, my - h / 2, r * 0.4, h))
-    else:
-        pygame.draw.arc(s, ink, _R(c - r * 0.25, my - r * 0.2, r * 0.5, r * 0.3), math.pi * 1.1, math.pi * 1.9, 4)
+    if part != "hat":
+        # foulard rouge
+        pygame.draw.ellipse(s, ROUGE, _R(c - r * 0.75, fy + r * 0.62, r * 1.5, r * 0.45))
+        # visage, qui s'étire un peu quand la bouche s'ouvre
+        stretch = r * 0.05 * mouth
+        face = _R(c - r, fy - r, r * 2, r * 2 + stretch)
+        pygame.draw.ellipse(s, (255, 244, 225), face)
+        pygame.draw.ellipse(s, ink, face, 4)
+        # yeux, plissés quand il croque
+        lx, ly = look
+        ey = fy + int(r * 0.02)
+        squint = 1.0 - 0.18 * mouth
+        for ex in (c - int(r * 0.36), c + int(r * 0.36)):
+            eye = _R(ex - r * 0.21, ey - r * 0.27 * squint, r * 0.42, r * 0.54 * squint)
+            pygame.draw.ellipse(s, WHITE, eye)
+            pygame.draw.ellipse(s, ink, eye, 2)
+            pygame.draw.circle(s, BLACK, (ex + int(lx * r * 0.09), ey + int(ly * r * 0.08 * squint)), int(r * 0.12))
+        # joues
+        for cx in (c - int(r * 0.66), c + int(r * 0.66)):
+            pygame.draw.circle(s, (255, 150, 150), (cx, fy + int(r * 0.36)), int(r * 0.13))
+        # bouche : de la moue au grand "croc"
+        my = fy + int(r * 0.5)
+        if mouth:
+            w = r * (0.32 + 0.12 * mouth)
+            h = r * (0.12 + 0.17 * mouth)
+            m = _R(c - w / 2, my - h * 0.35, w, h)
+            pygame.draw.ellipse(s, (120, 15, 30), m)
+            pygame.draw.ellipse(s, ink, m, 3)
+            if mouth >= 2:
+                # dents du haut
+                pygame.draw.rect(s, WHITE, _R(c - w * 0.25, m.top + 2, w * 0.5, h * 0.22))
+                pygame.draw.ellipse(s, (240, 110, 120), _R(c - w * 0.25, m.bottom - h * 0.4, w * 0.5, h * 0.3))
+        else:
+            pygame.draw.arc(s, ink, _R(c - r * 0.25, my - r * 0.2, r * 0.5, r * 0.3), math.pi * 1.1, math.pi * 1.9, 4)
+    if part != "body":
+        # béret bleu, qui saute à chaque bouchée
+        br = _R(0, 0, r * 2.05, r * 0.95)
+        br.center = (c - int(r * 0.12), fy - int(r * 0.72) - int(r * 0.06 * mouth))
+        pygame.draw.ellipse(s, (28, 48, 150), br)
+        pygame.draw.ellipse(s, (12, 20, 70), br, 4)
+        pygame.draw.circle(s, (12, 20, 70), (br.centerx + int(r * 0.2), br.top + 4), int(r * 0.13))
     out = pygame.transform.smoothscale(s, (size, size))
     _cache[key] = out
     return out
 
 
-def sprite_general(size, left, mouth):
-    """Le Général : tête de profil avec képi à deux étoiles."""
-    key = ("general", size, left, mouth)
+def sprite_general(size, left, mouth, part="all"):
+    """Le Général : tête de profil avec képi à deux étoiles.
+    mouth : 0 à 3 (la mâchoire s'abaisse). part : "all", "body" ou "hat"."""
+    key = ("general", size, left, mouth, part)
     if key in _cache:
         return _cache[key]
     s, W = _canvas(size)
@@ -288,47 +304,54 @@ def sprite_general(size, left, mouth):
     ink = (45, 28, 22)
     skin = (240, 200, 168)
     lw = max(2, int(1.6 * k))
-    # col de l'uniforme
-    col = [P(28, 86), P(72, 86), P(80, 100), P(20, 100)]
-    pygame.draw.polygon(s, (112, 100, 64), col)
-    pygame.draw.polygon(s, ink, col, lw)
-    # tête allongée
-    pygame.draw.ellipse(s, skin, RR(26, 28, 46, 62))
-    pygame.draw.ellipse(s, ink, RR(26, 28, 46, 62), lw)
-    # oreille
-    pygame.draw.ellipse(s, (228, 180, 150), RR(19, 46, 13, 20))
-    pygame.draw.ellipse(s, ink, RR(19, 46, 13, 20), lw)
-    pygame.draw.arc(s, ink, RR(22, 50, 7, 12), -1.2, 1.2, lw)
-    # le nez, illustre
-    nose = [P(58, 44), P(88, 63), P(85, 69), P(63, 71)]
-    pygame.draw.polygon(s, skin, nose)
-    pygame.draw.lines(s, ink, False, nose, lw)
-    # sourcil et oeil
-    pygame.draw.line(s, (70, 60, 55), P(51, 43), P(65, 41), int(3 * k))
-    pygame.draw.ellipse(s, (30, 20, 20), RR(56, 46, 6, 4))
-    # moustache
-    pygame.draw.rect(s, (85, 75, 70), RR(61, 72, 14, 5))
-    # bouche
-    if mouth:
-        h = 4 + 4 * mouth
-        pygame.draw.ellipse(s, (120, 30, 35), RR(61, 78, 11, h))
-    else:
-        pygame.draw.line(s, ink, P(62, 81), P(72, 80), lw)
-    # menton
-    pygame.draw.arc(s, ink, RR(48, 70, 24, 20), math.pi * 1.2, math.pi * 1.85, lw)
-    # képi
-    crown = [P(24, 10), P(68, 6), P(73, 35), P(23, 37)]
-    pygame.draw.polygon(s, (128, 110, 72), crown)
-    pygame.draw.polygon(s, ink, crown, lw)
-    pygame.draw.line(s, (212, 175, 55), P(25, 10), P(68, 6), lw)
-    band = [P(23, 27), P(72, 26), P(73, 35), P(23, 37)]
-    pygame.draw.polygon(s, (32, 32, 38), band)
-    leaves = [P(25 + i * 4, 31 + (2 if i % 2 else -2)) for i in range(12)]
-    pygame.draw.lines(s, (212, 175, 55), False, leaves, lw)
-    for sx in (40, 54):
-        star(s, P(sx, 18), 4.5 * k, (230, 190, 60))
-    visor = [P(52, 34), P(92, 38), P(90, 43), P(54, 41)]
-    pygame.draw.polygon(s, (15, 15, 18), visor)
+    jaw = 2.5 * mouth  # descente de la mâchoire
+    if part != "hat":
+        # col de l'uniforme
+        col = [P(28, 86), P(72, 86), P(80, 100), P(20, 100)]
+        pygame.draw.polygon(s, (112, 100, 64), col)
+        pygame.draw.polygon(s, ink, col, lw)
+        # tête allongée (s'allonge quand la mâchoire descend)
+        head = RR(26, 28, 46, 62 + jaw * 0.6)
+        pygame.draw.ellipse(s, skin, head)
+        pygame.draw.ellipse(s, ink, head, lw)
+        # oreille
+        pygame.draw.ellipse(s, (228, 180, 150), RR(19, 46, 13, 20))
+        pygame.draw.ellipse(s, ink, RR(19, 46, 13, 20), lw)
+        pygame.draw.arc(s, ink, RR(22, 50, 7, 12), -1.2, 1.2, lw)
+        # bouche qui claque sous la moustache
+        if mouth:
+            m = RR(59, 76, 15, 3 + jaw * 1.6)
+            pygame.draw.ellipse(s, (110, 20, 30), m)
+            pygame.draw.ellipse(s, ink, m, lw)
+            pygame.draw.rect(s, WHITE, RR(62, 76, 9, 2 + mouth * 0.6))
+        else:
+            pygame.draw.line(s, ink, P(62, 81), P(72, 80), lw)
+        # menton
+        pygame.draw.arc(s, ink, RR(48, 70 + jaw, 24, 20), math.pi * 1.2, math.pi * 1.85, lw)
+        # le nez, illustre
+        nose = [P(58, 44), P(88, 63), P(85, 69), P(63, 71)]
+        pygame.draw.polygon(s, skin, nose)
+        pygame.draw.lines(s, ink, False, nose, lw)
+        # sourcil (se fronce en croquant) et oeil
+        pygame.draw.line(s, (70, 60, 55), P(51, 43 - mouth * 0.6), P(65, 41 + mouth * 0.8), int(3 * k))
+        pygame.draw.ellipse(s, (30, 20, 20), RR(56, 46, 6, 4))
+        # moustache
+        pygame.draw.rect(s, (85, 75, 70), RR(61, 72 - mouth * 0.5, 14, 5))
+    if part != "body":
+        # képi, qui tressaute à chaque bouchée
+        up = -1.5 * mouth
+        crown = [P(24, 10 + up), P(68, 6 + up), P(73, 35 + up), P(23, 37 + up)]
+        pygame.draw.polygon(s, (128, 110, 72), crown)
+        pygame.draw.polygon(s, ink, crown, lw)
+        pygame.draw.line(s, (212, 175, 55), P(25, 10 + up), P(68, 6 + up), lw)
+        band = [P(23, 27 + up), P(72, 26 + up), P(73, 35 + up), P(23, 37 + up)]
+        pygame.draw.polygon(s, (32, 32, 38), band)
+        leaves = [P(25 + i * 4, 31 + up + (2 if i % 2 else -2)) for i in range(12)]
+        pygame.draw.lines(s, (212, 175, 55), False, leaves, lw)
+        for sx in (40, 54):
+            star(s, P(sx, 18 + up), 4.5 * k, (230, 190, 60))
+        visor = [P(52, 34 + up), P(92, 38 + up), P(90, 43 + up), P(54, 41 + up)]
+        pygame.draw.polygon(s, (15, 15, 18), visor)
     out = pygame.transform.smoothscale(s, (size, size))
     if left:
         out = pygame.transform.flip(out, True, False)
@@ -591,10 +614,12 @@ class Player(Mover):
         moving_before = (self.x, self.y)
         self.advance(speed * dt)
         if (self.x, self.y) != moving_before:
-            self.anim += dt * 12
+            self.anim += dt * 26
+
+    CHOMP = (0, 1, 2, 3, 3, 2, 1)
 
     def mouth(self):
-        return int(abs(math.sin(self.anim)) * 2.99)
+        return self.CHOMP[int(self.anim) % len(self.CHOMP)]
 
 
 GHOST_INFO = [
@@ -1108,13 +1133,13 @@ class Game:
     def to_screen(self, x, y):
         return (int(x * TILE + TILE / 2), int(HUD_TOP + y * TILE + TILE / 2))
 
-    def player_sprite(self, size, mouth=None):
+    def player_sprite(self, size, mouth=None, part="all"):
         p = self.player
         if mouth is None:
             mouth = p.mouth() if self.state == "play" else 0
         if self.egg:
-            return sprite_general(size + 6, p.last_h == LEFT, mouth)
-        return sprite_pierrot(size, p.facing if p.facing != STOP else LEFT, mouth)
+            return sprite_general(size + 6, p.last_h == LEFT, mouth, part)
+        return sprite_pierrot(size, p.facing if p.facing != STOP else LEFT, mouth, part)
 
     def text(self, txt, font, color, center, shadow=True):
         img = font.render(txt, True, color)
@@ -1181,15 +1206,7 @@ class Game:
         p = self.player
         center = self.to_screen(p.x, p.y)
         if self.state == "dying":
-            k = 1.0 if self.t > 1.6 else max(0.0, self.t / 1.6)
-            img = self.player_sprite(26, mouth=2)
-            if k < 1.0:
-                size = max(1, int(img.get_width() * k))
-                img = pygame.transform.rotozoom(img, (1 - k) * 720, k)
-                if size <= 2:
-                    img = None
-            if img:
-                self.screen.blit(img, img.get_rect(center=center))
+            self.draw_death(center)
         elif self.state not in ("gameover",) and self.freeze_ghost is None:
             img = self.player_sprite(26)
             rect = img.get_rect(center=center)
@@ -1209,6 +1226,33 @@ class Game:
             self.text("FIN DE PARTIE", self.font, ROUGE, mid)
         if self.paused:
             self.text("PAUSE", self.font_big, WHITE, (WIDTH // 2, HEIGHT // 2 - 40))
+
+    def draw_death(self, center):
+        """Le couvre-chef s'envole, puis la tête tourbillonne et disparaît."""
+        if self.t > 1.6:
+            img = self.player_sprite(26, mouth=3)
+            self.screen.blit(img, img.get_rect(center=center))
+            return
+        e = 1.6 - self.t  # temps écoulé depuis le début de l'animation
+        cx, cy = center
+        body = self.player_sprite(26, mouth=3, part="body")
+        k = max(0.0, 1.0 - e / 1.3)
+        if k > 0.05:
+            img = pygame.transform.rotozoom(body, e * 720, k)
+            self.screen.blit(img, img.get_rect(center=center))
+        else:
+            # petite gerbe tricolore finale
+            for i in range(12):
+                a = i * math.pi / 6
+                d = 6 + (e - 1.3) * 60
+                col = (BLEU, WHITE, ROUGE)[i % 3]
+                pygame.draw.circle(self.screen, col, (int(cx + d * math.cos(a)), int(cy + d * math.sin(a))), 2)
+        hat = self.player_sprite(26, mouth=0, part="hat")
+        hx = cx + e * 18
+        hy = cy - e * 70 + e * e * 30
+        img = pygame.transform.rotozoom(hat, -e * 260, 1.0)
+        if e < 1.5:
+            self.screen.blit(img, img.get_rect(center=(int(hx), int(hy))))
 
     def draw_title(self):
         t = self.title_t
