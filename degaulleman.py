@@ -215,18 +215,270 @@ class Sfx:
 
 
 # ---------------------------------------------------------------------------
-# Sprites (dessinés en code, rendus en x3 puis lissés)
+# Sprites en pixel art : grilles de caractères, agrandies sans lissage
 # ---------------------------------------------------------------------------
 _cache = {}
 
+PAL = {
+    "k": (20, 12, 16), "e": BLACK, "w": WHITE, "f": (255, 236, 210), "p": (255, 150, 150),
+    "r": ROUGE, "m": (130, 15, 35), "b": (40, 70, 190), "B": (15, 25, 95),
+    "s": (240, 200, 168), "S": (200, 155, 125), "K": (128, 110, 72), "g": (235, 190, 60),
+    "d": (40, 40, 46), "v": (10, 10, 14), "u": (112, 100, 64), "h": (95, 85, 80),
+}
 
-def _canvas(size, scale=3):
-    w = size * scale
-    return pygame.Surface((w, w), pygame.SRCALPHA), w
+PIERROT = [
+    "................",
+    ".........BB.....",
+    ".....bbbbbbb....",
+    "...bbbbbbbbbbb..",
+    "..bbbbbbbbbbbbb.",
+    "..BBBBBBBBBBBBB.",
+    "..kffffffffffk..",
+    ".kffffffffffffk.",
+    ".kffwwffffwwffk.",
+    ".kffwwffffwwffk.",
+    ".kpffffffffffpk.",
+    ".kffffffffffffk.",
+    "..kffffffffffk..",
+    "...kffffffffk...",
+    "...rrrrrrrrrr...",
+    "....rrrrrrrr....",
+]
+PIERROT_HAT_ROWS = 6
+
+GENERAL = [  # de profil, regard vers la droite
+    "...kkkkkkkkkk...",
+    "...kKKgKKgKKk...",
+    "...kKKKKKKKKk...",
+    "...kdgdgdgdgk...",
+    "...kddddddddvvvv",
+    "..kssssssssk....",
+    "..kssssskkss....",
+    ".kSssssssesk....",
+    ".kSSssssssssk...",
+    "..kSsssssssssk..",
+    "..ksssssssssssk.",
+    "..kssssshhhkk...",
+    "..kssssssssk....",
+    "...kssssssk.....",
+    "..kuuuuuuuuk....",
+    ".kuuuuuuuuuuk...",
+]
+GENERAL_HAT_ROWS = 5
+
+PAPER = [  # une Paperasse : feuille au coin corné
+    "................",
+    ".kkkkkkkkkkk....",
+    ".kccccccccckk...",
+    ".kccccccccckLk..",
+    ".kccccccccckLLk.",
+    ".kccccccccckkkkk",
+    ".kcxcccccccccxck",
+    ".kccxxccccxxccck",
+    ".kccwwccccwwccck",
+    ".kccwwccccwwccck",
+    ".kccccccccccccck",
+    ".kcxxxxxxxxxxcck",
+    ".kccccccccccccck",
+    ".kcxxxxxxxccccck",
+    ".kccccccccccccck",
+    ".kkk.kkk.kkk.kkk",
+]
+PAPER_TEETH = [".kkk.kkk.kkk.kkk", ".k.kkk.kkk.kkk.k"]
+
+PLANE = [  # avion de papier, pointe vers la droite
+    "................",
+    "................",
+    "................",
+    ".kk.............",
+    ".kwkk...........",
+    "..kwwwkk........",
+    "..kwwwwwkkk.....",
+    "...kwwwwwwwkkk..",
+    "...kcccccccccck.",
+    "...kwwwwwwwkkk..",
+    "..kwwwwwkkk.....",
+    "..kwwwkk........",
+    ".kwkk...........",
+    ".kk.............",
+    "................",
+    "................",
+]
+
+COCKADE = [
+    "..rrr..",
+    ".rwwwr.",
+    "rwbbbwr",
+    "rwbbbwr",
+    "rwbbbwr",
+    ".rwwwr.",
+    "..rrr..",
+]
+
+BONUS_ART = [
+    ([  # baguette
+        "..........yy",
+        ".........yYy",
+        "........yyYy",
+        ".......yYyy.",
+        "......yyYy..",
+        ".....yYyy...",
+        "....yyYy....",
+        "...yYyy.....",
+        "..yyYy......",
+        ".yYyy.......",
+        "yyYy........",
+        "yy..........",
+    ], {"y": (200, 135, 55), "Y": (250, 215, 150)}),
+    ([  # croissant
+        "............",
+        "............",
+        "....oooo....",
+        "..ooOooOoo..",
+        ".oOOoOOoOOo.",
+        "ooOoo..ooOoo",
+        "oOo......oOo",
+        "oo........oo",
+        ".o........o.",
+        "............",
+        "............",
+        "............",
+    ], {"o": (190, 120, 40), "O": (240, 175, 70)}),
+    ([  # camembert
+        "............",
+        "............",
+        "..cccccccc..",
+        ".cwwwwwwwwc.",
+        "cwwwwwwYYYYc",
+        "cwwwwwwYYYc.",
+        "cwwwwwwYYc..",
+        "cwwwwwwwwc..",
+        ".cwwwwwwwc..",
+        "..ccccccc...",
+        "............",
+        "............",
+    ], {"c": (200, 180, 130), "w": (250, 245, 225), "Y": (250, 215, 100)}),
+    ([  # macaron
+        "............",
+        "............",
+        "...pppppp...",
+        ".ppPPpppppp.",
+        "pppppppppppp",
+        "wwwwwwwwwwww",
+        "pppppppppppp",
+        ".pppppppppp.",
+        "...pppppp...",
+        "............",
+        "............",
+        "............",
+    ], {"p": (255, 130, 185), "P": (255, 200, 225), "w": (255, 245, 230)}),
+    ([  # éclair
+        "............",
+        "............",
+        "............",
+        ".dddddddddd.",
+        "dddDDdddDDdd",
+        "tttttttttttt",
+        "tTTttttTTttt",
+        ".tttttttttt.",
+        "............",
+        "............",
+        "............",
+        "............",
+    ], {"d": (90, 50, 25), "D": (150, 90, 50), "t": (220, 170, 100), "T": (245, 210, 150)}),
+    ([  # tour Eiffel
+        ".....ee.....",
+        ".....ee.....",
+        ".....ee.....",
+        "....eeee....",
+        "....e..e....",
+        "...eeeeee...",
+        "...e....e...",
+        "..ee....ee..",
+        "..eeeeeeee..",
+        ".ee......ee.",
+        ".e........e.",
+        "ee........ee",
+    ], {"e": (175, 110, 60)}),
+    ([  # coq
+        "...rr.......",
+        "..rrr.......",
+        "..wwww......",
+        ".wwkwwyy....",
+        ".wwwwwy.....",
+        "..rwww..bb..",
+        "..rwwwwbbbb.",
+        "...wwwwwbbb.",
+        "...wwwwwwb..",
+        "....wwww....",
+        "....y..y....",
+        "...yy.yy....",
+    ], {"r": ROUGE, "w": WHITE, "k": BLACK, "y": JAUNE, "b": BLEU}),
+    ([  # médaille
+        "...rrrrrr...",
+        "...rrwwrr...",
+        "....rwwr....",
+        ".....rr.....",
+        ".....gg.....",
+        "..g.gggg.g..",
+        "...gggggg...",
+        ".ggggwwgggg.",
+        "...gggggg...",
+        "..g.gggg.g..",
+        ".....gg.....",
+        "............",
+    ], {"r": ROUGE, "w": WHITE, "g": (235, 190, 60)}),
+]
 
 
-def _R(x, y, w, h):
-    return pygame.Rect(int(x), int(y), int(w), int(h))
+def _grid(rows):
+    return [list(r) for r in rows]
+
+
+def _put(g, x, y, ch):
+    if 0 <= y < len(g) and 0 <= x < len(g[0]):
+        g[y][x] = ch
+
+
+def _surface(g, pal, rows=None):
+    """Grille -> Surface à 1 pixel par case (rows : lignes à garder)."""
+    h, w = len(g), len(g[0])
+    s = pygame.Surface((w, h), pygame.SRCALPHA)
+    for y in range(h) if rows is None else rows:
+        for x, ch in enumerate(g[y]):
+            col = pal.get(ch)
+            if col:
+                s.set_at((x, y), col)
+    return s
+
+
+def _upscale(surf, size):
+    k = max(1, int(round(size / float(surf.get_width()))))
+    return pygame.transform.scale(surf, (surf.get_width() * k, surf.get_height() * k))
+
+
+def _compose(g, pal, hat_rows, hat_dy, part):
+    out = pygame.Surface((len(g[0]), len(g)), pygame.SRCALPHA)
+    if part != "hat":
+        out.blit(_surface(g, pal, range(hat_rows, len(g))), (0, 0))
+    if part != "body":
+        out.blit(_surface(g, pal, range(hat_rows)), (0, hat_dy))
+    return out
+
+
+def _pupils(g, eyes, look, ch):
+    lx, ly = look
+    for ex, ey in eyes:
+        if lx > 0:
+            cells = [(ex + 1, ey), (ex + 1, ey + 1)]
+        elif lx < 0:
+            cells = [(ex, ey), (ex, ey + 1)]
+        elif ly < 0:
+            cells = [(ex, ey), (ex + 1, ey)]
+        else:
+            cells = [(ex, ey + 1), (ex + 1, ey + 1)]
+        for x, y in cells:
+            _put(g, x, y, ch)
 
 
 def sprite_pierrot(size, look, mouth, part="all"):
@@ -235,138 +487,73 @@ def sprite_pierrot(size, look, mouth, part="all"):
     key = ("pierrot", size, look, mouth, part)
     if key in _cache:
         return _cache[key]
-    s, W = _canvas(size)
-    c = W // 2
-    r = int(W * 0.40)
-    fy = c + int(r * 0.12)
-    ink = (70, 40, 35)
-    if part != "hat":
-        # foulard rouge
-        pygame.draw.ellipse(s, ROUGE, _R(c - r * 0.75, fy + r * 0.62, r * 1.5, r * 0.45))
-        # visage, qui s'étire un peu quand la bouche s'ouvre
-        stretch = r * 0.05 * mouth
-        face = _R(c - r, fy - r, r * 2, r * 2 + stretch)
-        pygame.draw.ellipse(s, (255, 244, 225), face)
-        pygame.draw.ellipse(s, ink, face, 4)
-        # yeux, plissés quand il croque
-        lx, ly = look
-        ey = fy + int(r * 0.02)
-        squint = 1.0 - 0.18 * mouth
-        for ex in (c - int(r * 0.36), c + int(r * 0.36)):
-            eye = _R(ex - r * 0.21, ey - r * 0.27 * squint, r * 0.42, r * 0.54 * squint)
-            pygame.draw.ellipse(s, WHITE, eye)
-            pygame.draw.ellipse(s, ink, eye, 2)
-            pygame.draw.circle(s, BLACK, (ex + int(lx * r * 0.09), ey + int(ly * r * 0.08 * squint)), int(r * 0.12))
-        # joues
-        for cx in (c - int(r * 0.66), c + int(r * 0.66)):
-            pygame.draw.circle(s, (255, 150, 150), (cx, fy + int(r * 0.36)), int(r * 0.13))
-        # bouche : de la moue au grand "croc"
-        my = fy + int(r * 0.5)
-        if mouth:
-            w = r * (0.32 + 0.12 * mouth)
-            h = r * (0.12 + 0.17 * mouth)
-            m = _R(c - w / 2, my - h * 0.35, w, h)
-            pygame.draw.ellipse(s, (120, 15, 30), m)
-            pygame.draw.ellipse(s, ink, m, 3)
-            if mouth >= 2:
-                # dents du haut
-                pygame.draw.rect(s, WHITE, _R(c - w * 0.25, m.top + 2, w * 0.5, h * 0.22))
-                pygame.draw.ellipse(s, (240, 110, 120), _R(c - w * 0.25, m.bottom - h * 0.4, w * 0.5, h * 0.3))
-        else:
-            pygame.draw.arc(s, ink, _R(c - r * 0.25, my - r * 0.2, r * 0.5, r * 0.3), math.pi * 1.1, math.pi * 1.9, 4)
-    if part != "body":
-        # béret bleu, qui saute à chaque bouchée
-        br = _R(0, 0, r * 2.05, r * 0.95)
-        br.center = (c - int(r * 0.12), fy - int(r * 0.72) - int(r * 0.06 * mouth))
-        pygame.draw.ellipse(s, (28, 48, 150), br)
-        pygame.draw.ellipse(s, (12, 20, 70), br, 4)
-        pygame.draw.circle(s, (12, 20, 70), (br.centerx + int(r * 0.2), br.top + 4), int(r * 0.13))
-    out = pygame.transform.smoothscale(s, (size, size))
+    g = _grid(PIERROT)
+    _pupils(g, [(4, 8), (10, 8)], look, "e")
+    if mouth == 0:
+        for x in range(6, 10):
+            _put(g, x, 12, "k")
+        _put(g, 5, 11, "k")
+        _put(g, 10, 11, "k")
+    elif mouth == 1:
+        for x in (7, 8):
+            _put(g, x, 11, "m")
+            _put(g, x, 12, "m")
+    elif mouth == 2:
+        for x in range(6, 10):
+            _put(g, x, 11, "w" if x in (7, 8) else "m")
+            _put(g, x, 12, "m")
+    else:
+        for y in (11, 12, 13):
+            for x in range(5, 11):
+                _put(g, x, y, "m")
+        for x in range(6, 10):
+            _put(g, x, 11, "w")
+        _put(g, 7, 13, "p")
+        _put(g, 8, 13, "p")
+        # yeux plissés de plaisir
+        for x in (4, 5, 10, 11):
+            _put(g, x, 8, "k")
+            _put(g, x, 9, "f")
+    img = _compose(g, PAL, PIERROT_HAT_ROWS, -1 if mouth >= 2 else 0, part)
+    out = _upscale(img, size)
     _cache[key] = out
     return out
 
 
 def sprite_general(size, left, mouth, part="all"):
-    """Le Général : tête de profil avec képi à deux étoiles.
+    """Le Général : tête de profil, képi à deux étoiles.
     mouth : 0 à 3 (la mâchoire s'abaisse). part : "all", "body" ou "hat"."""
     key = ("general", size, left, mouth, part)
     if key in _cache:
         return _cache[key]
-    s, W = _canvas(size)
-    k = W / 100.0
-
-    def P(x, y):
-        return (int(x * k), int(y * k))
-
-    def RR(x, y, w, h):
-        return _R(x * k, y * k, w * k, h * k)
-
-    ink = (45, 28, 22)
-    skin = (240, 200, 168)
-    lw = max(2, int(1.6 * k))
-    jaw = 2.5 * mouth  # descente de la mâchoire
-    if part != "hat":
-        # col de l'uniforme
-        col = [P(28, 86), P(72, 86), P(80, 100), P(20, 100)]
-        pygame.draw.polygon(s, (112, 100, 64), col)
-        pygame.draw.polygon(s, ink, col, lw)
-        # tête allongée (s'allonge quand la mâchoire descend)
-        head = RR(26, 28, 46, 62 + jaw * 0.6)
-        pygame.draw.ellipse(s, skin, head)
-        pygame.draw.ellipse(s, ink, head, lw)
-        # oreille
-        pygame.draw.ellipse(s, (228, 180, 150), RR(19, 46, 13, 20))
-        pygame.draw.ellipse(s, ink, RR(19, 46, 13, 20), lw)
-        pygame.draw.arc(s, ink, RR(22, 50, 7, 12), -1.2, 1.2, lw)
-        # bouche qui claque sous la moustache
-        if mouth:
-            m = RR(59, 76, 15, 3 + jaw * 1.6)
-            pygame.draw.ellipse(s, (110, 20, 30), m)
-            pygame.draw.ellipse(s, ink, m, lw)
-            pygame.draw.rect(s, WHITE, RR(62, 76, 9, 2 + mouth * 0.6))
-        else:
-            pygame.draw.line(s, ink, P(62, 81), P(72, 80), lw)
-        # menton
-        pygame.draw.arc(s, ink, RR(48, 70 + jaw, 24, 20), math.pi * 1.2, math.pi * 1.85, lw)
-        # le nez, illustre
-        nose = [P(58, 44), P(88, 63), P(85, 69), P(63, 71)]
-        pygame.draw.polygon(s, skin, nose)
-        pygame.draw.lines(s, ink, False, nose, lw)
-        # sourcil (se fronce en croquant) et oeil
-        pygame.draw.line(s, (70, 60, 55), P(51, 43 - mouth * 0.6), P(65, 41 + mouth * 0.8), int(3 * k))
-        pygame.draw.ellipse(s, (30, 20, 20), RR(56, 46, 6, 4))
-        # moustache
-        pygame.draw.rect(s, (85, 75, 70), RR(61, 72 - mouth * 0.5, 14, 5))
-    if part != "body":
-        # képi, qui tressaute à chaque bouchée
-        up = -1.5 * mouth
-        crown = [P(24, 10 + up), P(68, 6 + up), P(73, 35 + up), P(23, 37 + up)]
-        pygame.draw.polygon(s, (128, 110, 72), crown)
-        pygame.draw.polygon(s, ink, crown, lw)
-        pygame.draw.line(s, (212, 175, 55), P(25, 10 + up), P(68, 6 + up), lw)
-        band = [P(23, 27 + up), P(72, 26 + up), P(73, 35 + up), P(23, 37 + up)]
-        pygame.draw.polygon(s, (32, 32, 38), band)
-        leaves = [P(25 + i * 4, 31 + up + (2 if i % 2 else -2)) for i in range(12)]
-        pygame.draw.lines(s, (212, 175, 55), False, leaves, lw)
-        for sx in (40, 54):
-            star(s, P(sx, 18 + up), 4.5 * k, (230, 190, 60))
-        visor = [P(52, 34 + up), P(92, 38 + up), P(90, 43 + up), P(54, 41 + up)]
-        pygame.draw.polygon(s, (15, 15, 18), visor)
-    out = pygame.transform.smoothscale(s, (size, size))
+    g = _grid(GENERAL)
+    if mouth == 0:
+        for x in (8, 9, 10):
+            _put(g, x, 12, "k")
+    elif mouth == 1:
+        for x in (8, 9, 10):
+            _put(g, x, 12, "m")
+    elif mouth == 2:
+        for x in (8, 9, 10):
+            _put(g, x, 12, "m")
+        _put(g, 8, 13, "m")
+        _put(g, 9, 13, "m")
+    else:
+        for x in (8, 9, 10):
+            _put(g, x, 12, "w")
+        for x in (7, 8, 9):
+            _put(g, x, 13, "m")
+        _put(g, 8, 7, "k")  # sourcil froncé
+    img = _compose(g, PAL, GENERAL_HAT_ROWS, -1 if mouth >= 2 else 0, part)
     if left:
-        out = pygame.transform.flip(out, True, False)
+        img = pygame.transform.flip(img, True, False)
+    out = _upscale(img, size)
     _cache[key] = out
     return out
 
 
-def star(surf, center, r, color):
-    cx, cy = center
-    pts = []
-    for i in range(10):
-        a = -math.pi / 2 + i * math.pi / 5
-        rr = r if i % 2 == 0 else r * 0.45
-        pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
-    pygame.draw.polygon(surf, color, pts)
+def _shade(color, delta):
+    return tuple(max(0, min(255, v + delta)) for v in color)
 
 
 def sprite_paper(size, color, look, frame, mode):
@@ -374,51 +561,24 @@ def sprite_paper(size, color, look, frame, mode):
     key = ("paper", size, color, look, frame, mode)
     if key in _cache:
         return _cache[key]
-    s, W = _canvas(size)
-    m = int(W * 0.1)
-    f = int(W * 0.22)
-    bottom = W - m
-    ink = (25, 15, 30)
-    if mode == "fright":
-        fill = (60, 75, 210)
-    elif mode == "flash":
-        fill = (235, 235, 245)
-    else:
-        fill = color
-    teeth = 4
-    tw = (W - 2 * m) / teeth
-    pts = [(m, m), (W - m - f, m), (W - m, m + f), (W - m, bottom - 6)]
-    for i in range(teeth * 2 + 1):
-        x = W - m - i * tw / 2
-        y = bottom - (6 if (i + frame) % 2 == 0 else -2)
-        pts.append((x, y))
-    pts.append((m, bottom - 6))
-    pygame.draw.polygon(s, fill, pts)
-    pygame.draw.polygon(s, ink, pts, 4)
-    fold = [(W - m - f, m), (W - m - f, m + f), (W - m, m + f)]
-    pygame.draw.polygon(s, tuple(min(255, v + 70) for v in fill), fold)
-    pygame.draw.polygon(s, ink, fold, 3)
-    cx = W // 2
-    ey = int(W * 0.40)
+    g = _grid(PAPER)
+    g[15] = list(PAPER_TEETH[frame % 2])
     if mode == "normal":
-        for i in range(3):
-            y = int(W * (0.66 + i * 0.07))
-            pygame.draw.line(s, tuple(max(0, v - 70) for v in fill), (m + 10, y), (W - m - 10 - i * 12, y), 3)
-        lx, ly = look
-        for ex in (cx - int(W * 0.15), cx + int(W * 0.15)):
-            pygame.draw.ellipse(s, WHITE, _R(ex - W * 0.1, ey - W * 0.1, W * 0.2, W * 0.22))
-            pygame.draw.circle(s, (20, 20, 90), (ex + int(lx * W * 0.05), ey + int(ly * W * 0.06)), int(W * 0.055))
-        # sourcils froncés
-        pygame.draw.line(s, ink, (cx - int(W * 0.27), ey - int(W * 0.15)), (cx - int(W * 0.05), ey - int(W * 0.08)), 5)
-        pygame.draw.line(s, ink, (cx + int(W * 0.27), ey - int(W * 0.15)), (cx + int(W * 0.05), ey - int(W * 0.08)), 5)
+        _pupils(g, [(4, 8), (10, 8)], look, "e")
+        pal = dict(PAL, c=color, L=_shade(color, 80), x=_shade(color, -80))
     else:
-        mouth_col = (230, 40, 40) if mode == "flash" else (245, 230, 200)
-        for ex in (cx - int(W * 0.13), cx + int(W * 0.13)):
-            pygame.draw.circle(s, mouth_col, (ex, ey), int(W * 0.045))
-        my = int(W * 0.64)
-        zig = [(cx - int(W * 0.25) + i * int(W * 0.0625), my + (5 if i % 2 else -5)) for i in range(9)]
-        pygame.draw.lines(s, mouth_col, False, zig, 4)
-    out = pygame.transform.smoothscale(s, (size, size))
+        fill = (60, 75, 210) if mode == "fright" else (235, 235, 245)
+        face = (245, 230, 200) if mode == "fright" else ROUGE
+        for row in g:
+            for i, ch in enumerate(row):
+                if ch in "xw":
+                    row[i] = "c"
+        _put(g, 5, 8, "W")
+        _put(g, 10, 8, "W")
+        for i, x in enumerate(range(3, 13)):
+            _put(g, x, 11 if i % 2 else 12, "W")
+        pal = dict(PAL, c=fill, L=_shade(fill, 60), W=face)
+    out = _upscale(_surface(g, pal), size)
     _cache[key] = out
     return out
 
@@ -428,22 +588,19 @@ def sprite_plane(size, color, d):
     key = ("plane", size, color, d)
     if key in _cache:
         return _cache[key]
-    s, W = _canvas(size)
-    pts = [(W * 0.92, W * 0.5), (W * 0.1, W * 0.2), (W * 0.32, W * 0.5), (W * 0.1, W * 0.8)]
-    pygame.draw.polygon(s, (245, 245, 250), pts)
-    pygame.draw.polygon(s, (40, 40, 60), pts, 4)
-    pygame.draw.line(s, color, (W * 0.32, W * 0.5), (W * 0.92, W * 0.5), 6)
+    img = _surface(_grid(PLANE), dict(PAL, c=color))
     angle = {RIGHT: 0, UP: 90, LEFT: 180, DOWN: -90}.get(d, 0)
-    s = pygame.transform.rotate(s, angle)
-    out = pygame.transform.smoothscale(s, (size, size))
+    out = _upscale(pygame.transform.rotate(img, angle), size)
     _cache[key] = out
     return out
 
 
 def draw_cockade(surf, center, r):
-    pygame.draw.circle(surf, ROUGE, center, r)
-    pygame.draw.circle(surf, WHITE, center, max(1, int(r * 0.66)))
-    pygame.draw.circle(surf, BLEU, center, max(1, int(r * 0.34)))
+    key = ("cockade", r)
+    if key not in _cache:
+        _cache[key] = _upscale(_surface(_grid(COCKADE), PAL), 2 * r)
+    img = _cache[key]
+    surf.blit(img, img.get_rect(center=center))
 
 
 BONUSES = [
@@ -458,51 +615,12 @@ def bonus_index(level):
 
 
 def draw_bonus(surf, idx, center, size=22):
-    cx, cy = center
-    h = size / 2
-    if idx == 0:  # baguette
-        pts = [(cx - h, cy + h * 0.5), (cx + h * 0.6, cy - h), (cx + h, cy - h * 0.6), (cx - h * 0.6, cy + h)]
-        pygame.draw.polygon(surf, (215, 160, 80), pts)
-        pygame.draw.polygon(surf, (120, 70, 20), pts, 1)
-        for i in range(3):
-            t = -0.4 + i * 0.4
-            x, y = cx + t * h, cy - t * h
-            pygame.draw.line(surf, (250, 220, 160), (x - 2, y - 1), (x + 2, y + 3), 2)
-    elif idx == 1:  # croissant
-        pygame.draw.circle(surf, (225, 160, 60), (int(cx), int(cy)), int(h))
-        pygame.draw.circle(surf, BLACK, (int(cx), int(cy + h * 0.55)), int(h * 0.7))
-        for a in (-0.9, -0.3, 0.3, 0.9):
-            x = cx + math.sin(a) * h * 0.8
-            y = cy - math.cos(a) * h * 0.6
-            pygame.draw.line(surf, (150, 90, 20), (x, y - 3), (x, y + 3), 2)
-    elif idx == 2:  # camembert
-        rect = _R(cx - h, cy - h * 0.6, size, h * 1.4)
-        pygame.draw.ellipse(surf, (250, 245, 225), rect)
-        pygame.draw.ellipse(surf, (200, 180, 120), rect, 2)
-        pygame.draw.polygon(surf, (250, 215, 100), [(cx, cy), (cx + h, cy - h * 0.3), (cx + h, cy + h * 0.3)])
-    elif idx == 3:  # macaron
-        pygame.draw.ellipse(surf, (255, 140, 190), _R(cx - h, cy - h * 0.8, size, h * 0.8))
-        pygame.draw.rect(surf, (255, 245, 230), _R(cx - h * 0.85, cy - h * 0.15, size * 0.85, h * 0.3))
-        pygame.draw.ellipse(surf, (255, 140, 190), _R(cx - h, cy + h * 0.05, size, h * 0.8))
-    elif idx == 4:  # éclair
-        pygame.draw.rect(surf, (220, 170, 100), _R(cx - h, cy - h * 0.35, size, h * 0.8), border_radius=6)
-        pygame.draw.rect(surf, (90, 50, 25), _R(cx - h, cy - h * 0.45, size, h * 0.4), border_radius=6)
-    elif idx == 5:  # tour Eiffel
-        col = (170, 110, 60)
-        pygame.draw.polygon(surf, col, [(cx, cy - h), (cx + h * 0.8, cy + h), (cx + h * 0.4, cy + h),
-                                        (cx, cy + h * 0.4), (cx - h * 0.4, cy + h), (cx - h * 0.8, cy + h)])
-        pygame.draw.line(surf, col, (cx - h * 0.55, cy + h * 0.2), (cx + h * 0.55, cy + h * 0.2), 2)
-        pygame.draw.line(surf, col, (cx - h * 0.3, cy - h * 0.3), (cx + h * 0.3, cy - h * 0.3), 2)
-    elif idx == 6:  # coq
-        pygame.draw.circle(surf, WHITE, (int(cx), int(cy + 2)), int(h * 0.75))
-        pygame.draw.polygon(surf, BLEU, [(cx - h * 0.4, cy + 2), (cx - h, cy - h * 0.6), (cx - h * 0.9, cy + h * 0.4)])
-        pygame.draw.circle(surf, ROUGE, (int(cx + h * 0.25), int(cy - h * 0.75)), int(h * 0.28))
-        pygame.draw.polygon(surf, JAUNE, [(cx + h * 0.6, cy - h * 0.2), (cx + h, cy), (cx + h * 0.6, cy + h * 0.1)])
-        pygame.draw.circle(surf, BLACK, (int(cx + h * 0.35), int(cy - h * 0.15)), 2)
-    else:  # médaille
-        pygame.draw.polygon(surf, ROUGE, [(cx - h * 0.5, cy - h), (cx + h * 0.5, cy - h), (cx + h * 0.2, cy), (cx - h * 0.2, cy)])
-        star(surf, (cx, cy + h * 0.35), h * 0.7, WHITE)
-        pygame.draw.circle(surf, JAUNE, (int(cx), int(cy + h * 0.35)), int(h * 0.25))
+    key = ("bonus", idx, size)
+    if key not in _cache:
+        rows, pal = BONUS_ART[idx]
+        _cache[key] = _upscale(_surface(_grid(rows), pal), size)
+    img = _cache[key]
+    surf.blit(img, img.get_rect(center=(int(center[0]), int(center[1]))))
 
 
 def render_maze(outer, inner):
@@ -1158,9 +1276,9 @@ class Game:
         self.text("NIVEAU", self.font_small, WHITE, (WIDTH - 70, 12), False)
         self.text(str(self.level), self.font, WHITE, (WIDTH - 70, 33), False)
         y = HEIGHT - HUD_BOTTOM // 2
-        icon = sprite_general(26, False, 0) if self.egg else sprite_pierrot(22, LEFT, 0)
+        icon = sprite_general(32, False, 0) if self.egg else sprite_pierrot(32, LEFT, 0)
         for i in range(max(0, self.lives - 1)):
-            self.screen.blit(icon, icon.get_rect(center=(24 + i * 28, y)))
+            self.screen.blit(icon, icon.get_rect(center=(24 + i * 34, y)))
         first = max(1, self.level - 6)
         for i, lv in enumerate(range(self.level, first - 1, -1)):
             draw_bonus(self.screen, bonus_index(lv), (WIDTH - 22 - i * 28, y), 20)
@@ -1187,7 +1305,8 @@ class Game:
         flash_maze = self.state == "clear" and self.t < 2.0 and int(self.t * 4) % 2 == 0
         self.screen.blit(self.maze_flash if flash_maze else self.maze_img, (0, HUD_TOP))
         for c, r in self.pellets:
-            pygame.draw.circle(self.screen, CREME, self.to_screen(c, r), 3)
+            x, y = self.to_screen(c, r)
+            self.screen.fill(CREME, (x - 2, y - 2, 4, 4))
         blink = int(pygame.time.get_ticks() / 220) % 2 == 0
         if blink or self.state != "play":
             for c, r in self.powers:
@@ -1238,7 +1357,8 @@ class Game:
         body = self.player_sprite(26, mouth=3, part="body")
         k = max(0.0, 1.0 - e / 1.3)
         if k > 0.05:
-            img = pygame.transform.rotozoom(body, e * 720, k)
+            img = pygame.transform.rotate(body, int(e * 8) * 90)
+            img = pygame.transform.scale(img, (max(1, int(img.get_width() * k)), max(1, int(img.get_height() * k))))
             self.screen.blit(img, img.get_rect(center=center))
         else:
             # petite gerbe tricolore finale
@@ -1250,7 +1370,7 @@ class Game:
         hat = self.player_sprite(26, mouth=0, part="hat")
         hx = cx + e * 18
         hy = cy - e * 70 + e * e * 30
-        img = pygame.transform.rotozoom(hat, -e * 260, 1.0)
+        img = pygame.transform.rotate(hat, -int(e * 6) * 90)
         if e < 1.5:
             self.screen.blit(img, img.get_rect(center=(int(hx), int(hy))))
 
@@ -1283,7 +1403,7 @@ class Game:
             self.screen.blit(lbl, (140, y - lbl.get_height() // 2))
         if t > 3.2:
             y = 465
-            pygame.draw.circle(self.screen, CREME, (150, y), 3)
+            self.screen.fill(CREME, (148, y - 2, 4, 4))
             self.screen.blit(self.font_small.render("10 pts", True, WHITE), (165, y - 8))
             draw_cockade(self.screen, (290, y), 8)
             self.screen.blit(self.font_small.render("50 pts", True, WHITE), (305, y - 8))

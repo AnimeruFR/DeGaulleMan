@@ -58,4 +58,4 @@ Pierrot est alors remplacé par la tête du **Général de Gaulle**, avec képi 
 build.bat
 ```
 
-Tous les graphismes et les sons sont générés par le code : il n'y a aucun fichier externe.
+Tous les graphismes (pixel art 16×16 façon arcade) et les sons sont générés par le code : il n'y a aucun fichier externe.
