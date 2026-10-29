@@ -20,10 +20,19 @@ py degaulleman.py
 | Touche | Action |
 |---|---|
 | Flèches / ZQSD / WASD | Se déplacer |
-| Entrée / Espace | Commencer |
+| C (ou Entrée) | Mettre une pièce |
+| Entrée / Espace / 1 | Commencer (consomme un crédit) |
 | P / Échap | Pause |
 | M | Couper le son |
+| T | Effet écran cathodique (télé) on/off |
 | F11 | Plein écran |
+
+## Ambiance borne d'arcade
+
+- Écran titre avec « INSERT COIN » et compteur de crédits.
+- Démo automatique : si personne ne joue pendant 15 secondes, le jeu se joue tout seul. Une touche pour revenir.
+- Police pixel, lignes de balayage façon écran cathodique, musique et bruitages façon puce sonore à deux voix.
+- Particules tricolores, cocardes qui pulsent, Paperasses qui sautillent, scores qui s'envolent, écran qui tremble quand on perd une vie.
 
 ## Règles
 

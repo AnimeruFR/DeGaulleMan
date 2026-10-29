@@ -127,60 +127,105 @@ class Sfx:
         s["dot_a"] = self.render([(330, 560, 0.055, "tri", 0.35)])
         s["dot_b"] = self.render([(560, 330, 0.055, "tri", 0.35)])
         s["siren"] = self.render([(420, 700, 0.22, "tri", 0.12), (700, 420, 0.22, "tri", 0.12)])
-        s["fright"] = self.render([(180, 260, 0.09, "sq", 0.07), (260, 180, 0.09, "sq", 0.07)])
-        s["retreat"] = self.render([(900, 1500, 0.07, "sq", 0.06), (1500, 900, 0.07, "sq", 0.06)])
-        s["power"] = self.render([(200, 900, 0.15, "sq", 0.15)])
-        s["eat_ghost"] = self.render([(150, 1800, 0.28, "sq", 0.18)])
-        s["bonus"] = self.notes([(72, .06), (76, .06), (79, .06), (84, .12)], "sq", 0.18)
-        s["life"] = self.notes([(96, .08), (0, .04)] * 5, "sin", 0.3)
+        s["fright"] = self.render([(180, 260, 0.09, "p25", 0.06), (260, 180, 0.09, "p25", 0.06)])
+        s["retreat"] = self.render([(900, 1500, 0.07, "p12", 0.06), (1500, 900, 0.07, "p12", 0.06)])
+        s["power"] = self.render([(200, 900, 0.15, "p25", 0.15)])
+        s["eat_ghost"] = self.render([(150, 1800, 0.28, "p25", 0.18)])
+        s["bonus"] = self.seq([(72, .06), (76, .06), (79, .06), (84, .12)], "p12", 0.18)
+        s["life"] = self.seq([(96, .08), (0, .04)] * 5, "p12", 0.18)
+        s["coin"] = self.seq([(88, .06), (93, .25)], "p12", 0.2)
         s["death"] = self.render(
-            [(900 - i * 90, 300 - i * 25, 0.13, "sq", 0.16) for i in range(8)]
+            [(900 - i * 90, 300 - i * 25, 0.13, "p25", 0.16) for i in range(8)]
             + [(0, 0, 0.08, "sq", 0)]
             + [(500, 120, 0.12, "noise", 0.25), (0, 0, 0.05, "sq", 0), (500, 120, 0.12, "noise", 0.25)]
         )
         tune = [(72, .13), (76, .13), (79, .13), (76, .13), (84, .13), (79, .13), (76, .13), (79, .13),
                 (74, .13), (77, .13), (81, .13), (77, .13), (83, .13), (79, .13), (74, .13), (79, .13),
                 (84, .45)]
-        s["start"] = self.notes(tune, "sq", 0.16)
+        bass = [(48, .26), (55, .26), (48, .26), (55, .26), (50, .26), (57, .26), (55, .26), (50, .26), (48, .45)]
+        s["start"] = self.mix((tune, "p25", 0.13), (bass, "tri", 0.3))
         # La Marseillaise (Rouget de Lisle, 1792 - domaine public), premières mesures
         marseillaise = [(62, .12), (62, .24), (62, .12), (67, .32), (67, .32), (69, .32), (69, .32),
                         (74, .5), (71, .2), (67, .32), (67, .2), (71, .15), (67, .15), (64, .32),
                         (72, .6), (69, .2), (66, .2), (67, .7)]
-        s["marseillaise"] = self.notes(marseillaise, "sq", 0.16)
-        s["egg_off"] = self.notes([(67, .1), (60, .25)], "tri", 0.3)
-        s["pause"] = self.notes([(79, .05), (0, .03), (79, .05)], "sq", 0.12)
+        m_bass = [(43, .48), (43, .64), (38, .64), (43, .5), (43, .52), (47, .5), (40, .32), (48, .6), (38, .4), (43, .7)]
+        s["marseillaise"] = self.mix((marseillaise, "p25", 0.13), (m_bass, "tri", 0.3))
+        entracte = [(76, .125), (79, .125), (81, .25), (79, .125), (76, .125), (74, .25),
+                    (72, .125), (74, .125), (76, .25), (79, .25), (76, .25)]
+        e_bass = [(45, .25), (52, .25)] * 2 + [(43, .25), (50, .25)] * 2
+        s["intermission"] = self.mix((entracte, "p25", 0.11), (e_bass, "tri", 0.28))
+        s["clear"] = self.mix(([(72, .1), (76, .1), (79, .1), (84, .35)], "p25", 0.14),
+                              ([(48, .3), (36, .35)], "tri", 0.3))
+        s["gameover"] = self.mix(([(67, .22), (66, .22), (65, .22), (64, .6)], "p25", 0.14),
+                                 ([(43, .22), (42, .22), (41, .22), (40, .6)], "tri", 0.3))
+        s["egg_off"] = self.seq([(67, .1), (60, .25)], "tri", 0.3)
+        s["pause"] = self.seq([(79, .05), (0, .03), (79, .05)], "p12", 0.12)
         self.sounds = s
 
-    def render(self, segs):
-        out = array("h")
+    def wave(self, segs):
+        """Échantillons mono (-1..1). Ondes : sq, p25, p12 (impulsions), tri, sin, noise."""
+        out = []
         phase = 0.0
         rate = self.rate
         fade_in = 0.004 * rate + 1
         fade_out = 0.006 * rate + 1
+        noise = 0.0
         for f0, f1, dur, wave, vol in segs:
             n = int(rate * dur)
+            duty = {"sq": 0.5, "p25": 0.25, "p12": 0.125}.get(wave)
             for i in range(n):
                 f = f0 + (f1 - f0) * (i / n)
                 phase += f / rate
                 p = phase % 1.0
                 if f <= 0 or vol <= 0:
                     v = 0.0
-                elif wave == "sq":
-                    v = 1.0 if p < 0.5 else -1.0
+                elif duty is not None:
+                    v = 1.0 if p < duty else -1.0
                 elif wave == "tri":
                     v = 4.0 * abs(p - 0.5) - 1.0
                 elif wave == "sin":
                     v = math.sin(2 * math.pi * p)
                 else:
-                    v = random.uniform(-1, 1)
+                    if i % 3 == 0:  # bruit "8 bits", rafraîchi par paliers
+                        noise = random.uniform(-1, 1)
+                    v = noise
                 env = min(1.0, i / fade_in, (n - i) / fade_out)
-                sample = int(v * vol * env * 32767)
-                for _ in range(self.channels):
-                    out.append(sample)
+                if duty is not None and wave != "sq":
+                    env *= 1.0 - 0.35 * (i / n)  # léger "pluck" de puce sonore
+                out.append(v * vol * env)
+        return out
+
+    def to_sound(self, mono):
+        out = array("h")
+        for v in mono:
+            sample = int(max(-1.0, min(1.0, v)) * 32767)
+            for _ in range(self.channels):
+                out.append(sample)
         return pygame.mixer.Sound(buffer=out.tobytes())
 
-    def notes(self, seq, wave, vol):
-        return self.render([(midi(n) if n else 0, midi(n) if n else 0, d, wave, vol) for n, d in seq])
+    def render(self, segs):
+        return self.to_sound(self.wave(segs))
+
+    def _note_segs(self, seq, wave, vol, gate=0.85):
+        segs = []
+        for n, d in seq:
+            f = midi(n) if n else 0
+            segs.append((f, f, d * gate, wave, vol))
+            segs.append((0, 0, d * (1 - gate), wave, 0))
+        return segs
+
+    def seq(self, seq, wave, vol):
+        return self.render(self._note_segs(seq, wave, vol))
+
+    def mix(self, *voices):
+        """Plusieurs voix (notes, onde, volume) jouées ensemble."""
+        waves = [self.wave(self._note_segs(n, w, v)) for n, w, v in voices]
+        length = max(len(w) for w in waves)
+        mixed = [0.0] * length
+        for w in waves:
+            for i, v in enumerate(w):
+                mixed[i] += v
+        return self.to_sound(mixed)
 
     def play(self, name):
         if self.ok and not self.muted:
@@ -212,6 +257,103 @@ class Sfx:
         self.muted = not self.muted
         if self.muted:
             self.stop_all()
+
+
+# ---------------------------------------------------------------------------
+# Police pixel 5x7 (majuscules, chiffres, accents)
+# ---------------------------------------------------------------------------
+GLYPHS = {
+    "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "B": ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
+    "C": [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
+    "D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
+    "E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+    "F": ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+    "G": [".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".####"],
+    "H": ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "I": [".###.", "..#..", "..#..", "..#..", "..#..", "..#..", ".###."],
+    "J": ["..###", "...#.", "...#.", "...#.", "#..#.", "#..#.", ".##.."],
+    "K": ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+    "L": ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+    "M": ["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#"],
+    "N": ["#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#"],
+    "O": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    "P": ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+    "Q": [".###.", "#...#", "#...#", "#...#", "#.#.#", "#..#.", ".##.#"],
+    "R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
+    "S": [".####", "#....", "#....", ".###.", "....#", "....#", "####."],
+    "T": ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+    "U": ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    "V": ["#...#", "#...#", "#...#", "#...#", "#...#", ".#.#.", "..#.."],
+    "W": ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "##.##", "#...#"],
+    "X": ["#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#"],
+    "Y": ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
+    "Z": ["#####", "....#", "...#.", "..#..", ".#...", "#....", "#####"],
+    "0": [".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
+    "1": ["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
+    "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"],
+    "3": ["#####", "...#.", "..#..", "...#.", "....#", "#...#", ".###."],
+    "4": ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#."],
+    "5": ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."],
+    "6": ["..##.", ".#...", "#....", "####.", "#...#", "#...#", ".###."],
+    "7": ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."],
+    "8": [".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."],
+    "9": [".###.", "#...#", "#...#", ".####", "....#", "...#.", ".##.."],
+    "!": ["..#..", "..#..", "..#..", "..#..", "..#..", ".....", "..#.."],
+    "?": [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."],
+    ".": [".....", ".....", ".....", ".....", ".....", ".....", "..#.."],
+    ",": [".....", ".....", ".....", ".....", ".....", "..#..", ".#..."],
+    ":": [".....", "..#..", ".....", ".....", ".....", "..#..", "....."],
+    "-": [".....", ".....", ".....", ".###.", ".....", ".....", "....."],
+    "+": [".....", "..#..", "..#..", "#####", "..#..", "..#..", "....."],
+    "/": ["....#", "....#", "...#.", "..#..", ".#...", "#....", "#...."],
+    "'": ["..#..", "..#..", ".#...", ".....", ".....", ".....", "....."],
+    '"': [".#.#.", ".#.#.", ".....", ".....", ".....", ".....", "....."],
+    "(": ["...#.", "..#..", ".#...", ".#...", ".#...", "..#..", "...#."],
+    ")": [".#...", "..#..", "...#.", "...#.", "...#.", "..#..", ".#..."],
+    " ": ["....."] * 7,
+}
+ACCENTS = {"´": ["...#.", "..#.."], "`": [".#...", "..#.."], "^": ["..#..", ".#.#."], "¨": [".#.#.", "....."]}
+ACCENTED = {"É": ("E", "´"), "È": ("E", "`"), "Ê": ("E", "^"), "Ë": ("E", "¨"), "À": ("A", "`"), "Â": ("A", "^"),
+            "Î": ("I", "^"), "Ï": ("I", "¨"), "Ô": ("O", "^"), "Ù": ("U", "`"), "Û": ("U", "^"), "Ç": ("C", None)}
+
+
+class PixelFont:
+    """Police bitmap qui s'utilise comme pygame.font.Font (render / size)."""
+
+    def __init__(self, scale):
+        self.k = scale
+        self._cache = {}
+
+    def size(self, text):
+        return (max(0, len(text) * 6 - 1) * self.k, 10 * self.k)
+
+    def _cells(self, ch):
+        ch = ch.upper()
+        if ch in ACCENTED:
+            base, acc = ACCENTED[ch]
+            top = ACCENTS[acc] if acc else ["....."] * 2
+            bottom = "..#.." if ch == "Ç" else "....."
+            return top + GLYPHS[base] + [bottom]
+        return ["....."] * 2 + GLYPHS.get(ch, GLYPHS[" "]) + ["....."]
+
+    def render(self, text, antialias, color):
+        key = (text, tuple(color))
+        img = self._cache.get(key)
+        if img is not None:
+            return img
+        if len(self._cache) > 600:
+            self._cache.clear()
+        w, h = self.size(text)
+        img = pygame.Surface((max(1, w), h), pygame.SRCALPHA)
+        k = self.k
+        for i, ch in enumerate(text):
+            for y, row in enumerate(self._cells(ch)):
+                for x, v in enumerate(row):
+                    if v == "#":
+                        img.fill(color, ((i * 6 + x) * k, y * k, k, k))
+        self._cache[key] = img
+        return img
 
 
 # ---------------------------------------------------------------------------
@@ -935,9 +1077,16 @@ class Game:
             pass
         self.clock = pygame.time.Clock()
         self.sfx = Sfx()
-        self.font_big = pygame.font.Font(None, 64)
-        self.font = pygame.font.Font(None, 30)
-        self.font_small = pygame.font.Font(None, 22)
+        self.font_big = PixelFont(5)
+        self.font = PixelFont(3)
+        self.font_small = PixelFont(2)
+        self.crt = True
+        self.crt_img = self.make_crt()
+        self.credits = 0
+        self.demo = False
+        self.demo_t = 0.0
+        self.particles = []
+        self.shake = 0.0
         self.maze_img = render_maze(BLEU, (6, 10, 40))
         self.maze_flash = render_maze(WHITE, (6, 10, 40))
         self.all_pellets = set(find_cells("."))
@@ -960,6 +1109,66 @@ class Game:
         self.paused = False
         self.running = True
 
+    @staticmethod
+    def make_crt():
+        """Lignes de balayage et coins assombris, façon écran cathodique."""
+        img = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        for y in range(1, HEIGHT, 2):
+            img.fill((0, 0, 0, 70), (0, y, WIDTH, 1))
+        for i in range(18):
+            a = int(90 * (1 - i / 18.0) ** 2)
+            pygame.draw.rect(img, (0, 0, 0, a), (i, i, WIDTH - 2 * i, HEIGHT - 2 * i), 1)
+        return img
+
+    def burst(self, pos, colors, count, speed=90.0, life=0.6):
+        x, y = pos  # coordonnées écran
+        for i in range(count):
+            a = random.uniform(0, 2 * math.pi)
+            v = random.uniform(0.4, 1.0) * speed
+            self.particles.append([float(x), float(y), math.cos(a) * v, math.sin(a) * v, life, colors[i % len(colors)]])
+
+    def update_particles(self, dt):
+        for p in self.particles:
+            p[0] += p[2] * dt
+            p[1] += p[3] * dt
+            p[3] += 120 * dt
+            p[4] -= dt
+        self.particles = [p for p in self.particles if p[4] > 0]
+
+    def start_demo(self):
+        self.demo = True
+        self.saved_mute = self.sfx.muted
+        self.sfx.muted = True
+        self.sfx.stop_all()
+        self.new_game()
+
+    def end_demo(self):
+        self.demo = False
+        self.sfx.muted = self.saved_mute
+        self.sfx.stop_all()
+        self.state = "title"
+        self.title_t = 0.0
+
+    def demo_steer(self, dt):
+        """Pilote automatique de la démo : tourne au hasard aux carrefours, fuit les Paperasses proches."""
+        p = self.player
+        if not p.at_int():
+            return
+        c, r = p.tile
+        opts = [d for d in DIRS if walkable(c + d[0], r + d[1])]
+        if len(opts) > 1 and p.dir != STOP and reverse(p.dir) in opts:
+            opts.remove(reverse(p.dir))
+        danger = [g for g in self.ghosts if g.state == "normal" and not g.frightened
+                  and abs(g.x - p.x) + abs(g.y - p.y) < 4]
+
+        def score(d):
+            nc, nr = c + d[0], r + d[1]
+            val = random.random() + (2.0 if (nc, nr) in self.pellets or (nc, nr) in self.powers else 0.0)
+            for g in danger:
+                val += 0.8 * (abs(g.x - nc) + abs(g.y - nr))
+            return val
+        p.want = max(opts, key=score)
+
     # -- sauvegarde ---------------------------------------------------------
     def load_highscore(self):
         try:
@@ -977,6 +1186,8 @@ class Game:
 
     # -- déroulement --------------------------------------------------------
     def new_game(self):
+        self.demo_t = 0.0
+        self.particles = []
         self.score = 0
         self.lives = 3
         self.level = 1
@@ -1105,6 +1316,8 @@ class Game:
             if self.freeze <= 0:
                 self.freeze_ghost = None
             return
+        if self.demo:
+            self.demo_steer(dt)
         self.idle_t += dt
         p = self.params
 
@@ -1143,6 +1356,7 @@ class Game:
             self.add_score(50)
             self.player_pause = 3 / 60
             self.start_fright()
+            self.burst(self.to_screen(*tile), (BLEU, WHITE, ROUGE), 18, 130, 0.7)
 
         # bonus
         if self.bonus_t > 0:
@@ -1153,6 +1367,7 @@ class Game:
                 self.add_score(pts)
                 self.bonus_t = 0
                 self.popups.append([str(pts), BONUS_TILE, 2.0, (255, 150, 220)])
+                self.burst(self.to_screen(*BONUS_TILE), (JAUNE, WHITE, (255, 150, 220)), 14, 110, 0.6)
                 self.sfx.play("bonus")
 
         # Paperasses
@@ -1164,6 +1379,7 @@ class Game:
 
         if self.state == "play" and not self.pellets and not self.powers:
             self.sfx.stop_all()
+            self.sfx.play("clear")
             self.set_state("clear", 2.6)
             if self.egg:
                 self.show_banner("VIVE LA FRANCE !")
@@ -1205,19 +1421,28 @@ class Game:
                     self.freeze = 0.6
                     self.freeze_ghost = g
                     self.popups.append([str(pts), (g.x, g.y), 0.6, (80, 230, 255)])
+                    self.burst(self.to_screen(g.x, g.y), (WHITE, (200, 205, 225), g.color), 12, 100, 0.5)
                     self.sfx.play("eat_ghost")
                     return
                 self.sfx.stop_all()
                 self.sfx.play("death")
                 self.set_state("dying", 2.2)
+                self.shake = 0.35
                 return
 
     def update(self, dt):
         if self.banner_t > 0:
             self.banner_t -= dt
+        self.update_particles(dt)
+        if self.shake > 0:
+            self.shake -= dt
         if self.state == "title":
             self.title_t += dt
+            if self.title_t > 15 and self.credits == 0:
+                self.start_demo()
             return
+        if self.demo:
+            self.demo_t += dt
         if self.paused:
             return
         if self.state == "play":
@@ -1233,9 +1458,13 @@ class Game:
         elif self.state == "dying":
             if self.t <= 0:
                 self.lives -= 1
+                if self.demo:
+                    self.end_demo()
+                    return
                 if self.lives <= 0:
                     self.save_highscore()
                     self.set_state("gameover", 4.0)
+                    self.sfx.play("gameover")
                 else:
                     self.died_this_level = True
                     self.reset_positions()
@@ -1245,18 +1474,25 @@ class Game:
                 self.level += 1
                 if self.level - 1 in (2, 5, 9):
                     self.set_state("cutscene", 9.0)
-                    self.sfx.loop("siren")
+                    self.sfx.loop("intermission")
                 else:
                     self.start_level()
         elif self.state == "cutscene":
             if self.t <= 0:
+                self.sfx.loop(None)
                 self.start_level()
         elif self.state == "gameover":
             if self.t <= 0:
                 self.state = "title"
                 self.title_t = 0.0
+        if self.demo and self.demo_t > 40:
+            self.end_demo()
 
     # -- entrées ------------------------------------------------------------
+    def insert_coin(self):
+        self.credits = min(self.credits + 1, 9)
+        self.sfx.play("coin")
+
     def show_banner(self, text, dur=2.6):
         self.banner = text
         self.banner_t = dur
@@ -1289,9 +1525,22 @@ class Game:
         if k == pygame.K_m:
             self.sfx.toggle_mute()
             return
+        if k == pygame.K_t:
+            self.crt = not self.crt
+            return
+        if self.demo:
+            self.end_demo()
+            return
         if self.state == "title":
-            if k in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_KP_ENTER):
-                self.new_game()
+            self.title_t = min(self.title_t, 4.0)
+            if k in (pygame.K_c, pygame.K_5, pygame.K_KP5):
+                self.insert_coin()
+            elif k in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_KP_ENTER, pygame.K_1, pygame.K_KP1):
+                if self.credits == 0:
+                    self.insert_coin()
+                else:
+                    self.credits -= 1
+                    self.new_game()
             elif k == pygame.K_ESCAPE:
                 self.running = False
             return
@@ -1355,12 +1604,17 @@ class Game:
         else:
             look = g.dir if g.dir != STOP else DOWN
             img = sprite_paper(28, g.color, look, frame, "normal")
-        rect = img.get_rect(center=(cx, cy))
+        rect = img.get_rect(center=(cx, cy - (2 if frame and g.state == "normal" else 0)))
         self.screen.blit(img, rect)
         if rect.left < 0:
             self.screen.blit(img, rect.move(WIDTH, 0))
         elif rect.right > WIDTH:
             self.screen.blit(img, rect.move(-WIDTH, 0))
+
+    def draw_particles(self):
+        for x, y, _, _, life, col in self.particles:
+            n = 3 if life > 0.25 else 2
+            self.screen.fill(col, (int(x) - 1, int(y) - 1, n, n))
 
     def draw_play(self):
         flash_maze = self.state == "clear" and self.t < 2.0 and int(self.t * 4) % 2 == 0
@@ -1368,10 +1622,9 @@ class Game:
         for c, r in self.pellets:
             x, y = self.to_screen(c, r)
             self.screen.fill(CREME, (x - 2, y - 2, 4, 4))
-        blink = int(pygame.time.get_ticks() / 220) % 2 == 0
-        if blink or self.state != "play":
-            for c, r in self.powers:
-                draw_cockade(self.screen, self.to_screen(c, r), 8)
+        pulse = int(pygame.time.get_ticks() / 180) % 2 == 0
+        for c, r in self.powers:
+            draw_cockade(self.screen, self.to_screen(c, r), 8 if pulse or self.state != "play" else 6)
         if self.bonus_t > 0:
             draw_bonus(self.screen, bonus_index(self.level), self.to_screen(*BONUS_TILE), 22)
 
@@ -1396,12 +1649,19 @@ class Game:
             elif rect.right > WIDTH:
                 self.screen.blit(img, rect.move(-WIDTH, 0))
 
-        for txt, pos, _, col in self.popups:
-            self.text(txt, self.font_small, col, self.to_screen(*pos))
+        self.draw_particles()
+        for txt, pos, life, col in self.popups:
+            x, y = self.to_screen(*pos)
+            self.text(txt, self.font_small, col, (x, y - int((2.0 - life) * 8) if life <= 2.0 else y))
 
         mid = self.to_screen(*BONUS_TILE)
-        if self.state == "ready":
-            self.text("PRÊT !", self.font, JAUNE, mid)
+        if self.demo:
+            if int(pygame.time.get_ticks() / 400) % 2 == 0:
+                self.text("DÉMO", self.font, JAUNE, mid)
+            self.text("INSERT COIN", self.font_small, WHITE, (WIDTH // 2, HUD_TOP + 7 * TILE + 12))
+        elif self.state == "ready":
+            if int(self.t * 4) % 2 == 0 or self.t < 1.0:
+                self.text("PRÊT !", self.font, JAUNE, mid)
         elif self.state == "gameover":
             self.text("FIN DE PARTIE", self.font, ROUGE, mid)
         if self.paused:
@@ -1438,43 +1698,71 @@ class Game:
     def draw_title(self):
         t = self.title_t
         self.screen.fill(BLACK)
+        if not self.egg:
+            self.text("LE GÉNÉRAL VOUS OBSERVE...", self.font_small, (60, 60, 80), (WIDTH // 2, 16), False)
         name = "DEGAULLEMAN" if self.egg else "PIERROT"
         colors = [BLEU, WHITE, ROUGE]
-        x0 = WIDTH // 2 - self.font_big.size(name)[0] // 2
-        x = x0
+        x = WIDTH // 2 - self.font_big.size(name)[0] // 2
         for i, ch in enumerate(name):
-            img = self.font_big.render(ch, True, colors[i * 3 // len(name)])
-            y = 70 + int(4 * math.sin(t * 3 + i * 0.5))
-            self.screen.blit(img, (x, y - img.get_height() // 2))
-            x += img.get_width()
-        sub = "Le Général contre la paperasse" if self.egg else "Le labyrinthe tricolore"
-        self.text(sub, self.font_small, CREME, (WIDTH // 2, 112))
+            col = colors[i * 3 // len(name)]
+            y = 58 + int(4 * math.sin(t * 3 + i * 0.5))
+            self.screen.blit(self.font_big.render(ch, False, (0, 0, 0)), (x + 3, y - 22))
+            self.screen.blit(self.font_big.render(ch, False, col), (x, y - 25))
+            x += 30
+        sub = "LE GÉNÉRAL CONTRE LA PAPERASSE" if self.egg else "LE LABYRINTHE TRICOLORE"
+        self.text(sub, self.font_small, CREME, (WIDTH // 2, 100))
 
-        hero = sprite_general(110, False, int(t * 3) % 3) if self.egg else sprite_pierrot(96, (math.sin(t), 0), int(t * 3) % 3)
-        self.screen.blit(hero, hero.get_rect(center=(WIDTH // 2, 195 + int(5 * math.sin(t * 2)))))
+        mouth = (0, 1, 2, 3, 2, 1)[int(t * 8) % 6]
+        hero = sprite_general(96, False, mouth) if self.egg else sprite_pierrot(96, (int(round(math.sin(t))), 0), mouth)
+        self.screen.blit(hero, hero.get_rect(center=(WIDTH // 2, 168 + int(5 * math.sin(t * 2)))))
 
-        self.text("PERSONNAGE  /  SURNOM", self.font_small, WHITE, (WIDTH // 2, 272))
+        self.text("PERSONNAGE  /  SURNOM", self.font_small, WHITE, (WIDTH // 2, 236))
         for i, (nm, nick, col, _) in enumerate(GHOST_INFO):
             if t < 0.6 + i * 0.6:
                 break
-            y = 305 + i * 38
-            img = sprite_paper(30, col, RIGHT, int(t * 6) % 2, "normal")
-            self.screen.blit(img, img.get_rect(center=(110, y)))
-            lbl = self.font.render("%s  -  \"%s\"" % (nm, nick), True, col)
-            self.screen.blit(lbl, (140, y - lbl.get_height() // 2))
+            y = 268 + i * 36
+            img = sprite_paper(32, col, RIGHT, int(t * 6) % 2, "normal")
+            self.screen.blit(img, img.get_rect(center=(84, y)))
+            self.screen.blit(self.font.render(nm, False, col), (110, y - 14))
+            if t > 0.9 + i * 0.6:
+                self.screen.blit(self.font_small.render('"%s"' % nick.upper(), False, col), (286, y - 8))
         if t > 3.2:
-            y = 465
+            y = 412
             self.screen.fill(CREME, (148, y - 2, 4, 4))
-            self.screen.blit(self.font_small.render("10 pts", True, WHITE), (165, y - 8))
+            self.screen.blit(self.font_small.render("10 PTS", False, WHITE), (162, y - 8))
             draw_cockade(self.screen, (290, y), 8)
-            self.screen.blit(self.font_small.render("50 pts", True, WHITE), (305, y - 8))
-        if int(t * 2) % 2 == 0:
-            self.text("ENTRÉE pour jouer", self.font, JAUNE, (WIDTH // 2, 510))
-        self.text("Flèches / ZQSD : bouger    P : pause    M : son    F11 : plein écran",
-                  self.font_small, (170, 170, 190), (WIDTH // 2, 548), False)
-        self.text("RECORD  %d" % self.highscore, self.font_small, WHITE, (WIDTH // 2, 575), False)
-        if not self.egg:
-            self.text("Le Général vous observe...", self.font_small, (60, 60, 80), (WIDTH // 2, 30), False)
+            self.screen.blit(self.font_small.render("50 PTS", False, WHITE), (305, y - 8))
+        self.draw_parade(t, 452)
+        blink = int(t * 2.5) % 2 == 0
+        if self.credits == 0:
+            if blink:
+                self.text("INSERT COIN", self.font, JAUNE, (WIDTH // 2, 496))
+            self.text("C OU ENTRÉE : METTRE UNE PIÈCE", self.font_small, (150, 150, 170), (WIDTH // 2, 522), False)
+        else:
+            if blink:
+                self.text("APPUIE SUR ENTRÉE", self.font, JAUNE, (WIDTH // 2, 496))
+            self.text("CRÉDIT %d" % self.credits, self.font_small, WHITE, (WIDTH // 2, 522), False)
+        self.text("FLÈCHES/ZQSD : BOUGER   P : PAUSE", self.font_small, (120, 120, 140), (WIDTH // 2, 546), False)
+        self.text("M : SON   T : TÉLÉ   F11 : PLEIN ÉCRAN", self.font_small, (120, 120, 140), (WIDTH // 2, 562), False)
+        self.text("RECORD  %d" % self.highscore, self.font_small, WHITE, (WIDTH // 2, 582), False)
+        self.draw_particles()
+
+    def draw_parade(self, t, y):
+        """Petite course-poursuite qui défile en bas de l'écran titre."""
+        span = WIDTH + 320
+        x = (t * 110) % span - 160
+        chase = int(t * 110 // span) % 2 == 0
+        mouth = (0, 1, 2, 3, 2, 1)[int(t * 10) % 6]
+        for i in range(4):
+            gx = x - 46 - i * 34 if chase else x - 46 - i * 34
+            mode = "normal" if chase else ("flash" if int(t * 5) % 2 else "fright")
+            img = sprite_paper(32, GHOST_INFO[i][2], RIGHT, int(t * 6) % 2, mode)
+            self.screen.blit(img, img.get_rect(center=(int(gx), y - (2 if int(t * 6 + i) % 2 else 0))))
+        if self.egg:
+            hero = sprite_general(32, False, mouth)
+        else:
+            hero = sprite_pierrot(32, RIGHT, mouth)
+        self.screen.blit(hero, hero.get_rect(center=(int(x), y)))
 
     def draw_cutscene(self):
         self.screen.fill(BLACK)
@@ -1502,7 +1790,7 @@ class Game:
             m = int(elapsed * 10) % 3
             big = sprite_general(110, False, m) if self.egg else sprite_pierrot(96, RIGHT, m)
             self.screen.blit(big, big.get_rect(center=(int(gx - 120), y)))
-        self.text("ENTRÉE pour passer", self.font_small, (120, 120, 140), (WIDTH // 2, HEIGHT - 40), False)
+        self.text("ENTRÉE POUR PASSER", self.font_small, (120, 120, 140), (WIDTH // 2, HEIGHT - 40), False)
 
     def draw_banner(self):
         if self.banner_t <= 0 or not self.banner:
@@ -1525,8 +1813,12 @@ class Game:
             self.draw_cutscene()
         else:
             self.draw_play()
+            if self.shake > 0:
+                self.screen.scroll(random.randint(-3, 3), random.randint(-3, 3))
             self.draw_hud()
         self.draw_banner()
+        if self.crt:
+            self.screen.blit(self.crt_img, (0, 0))
 
     # -- boucle -------------------------------------------------------------
     def run(self):
@@ -1560,7 +1852,13 @@ def self_test(seconds=240):
         if random.random() < 0.05:
             game.player.want = random.choice(DIRS)
         if game.state == "title":
-            game.new_game()
+            if random.random() < 0.3:
+                game.title_t = 16  # déclenche la démo
+            else:
+                game.insert_coin()
+                game.credits -= 1
+                game.new_game()
+                game.lives = 40
         if random.random() < 0.0005:
             game.toggle_egg()
         if game.state == "play" and random.random() < 0.004:
